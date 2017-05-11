@@ -1,0 +1,35 @@
+#page-header{
+  padding: 30px 0;
+  font-size: 50px;
+  color: #337ab7;
+  text-align: center;
+}
+
+
+footer {
+  padding: 30px 0;
+  font-size: 12px;
+  color: grey;
+  text-align: center;
+}
+
+
+/*have to set height otherwise, the overflow-y: auto to keep the heading stay won't work
+  background: url('../images/bkgd.jpg');
+  background-size: cover;
+  height:500px;
+  overflow-y: auto
+}*/
+
+input{
+  margin-bottom: 10px;
+}
+
+/*.panel-default>.panel-heading {
+    background-color: #f0f5f5;
+}*/
+
+.panel {
+  margin-left: 50px;
+  margin-right: 50px;
+}
