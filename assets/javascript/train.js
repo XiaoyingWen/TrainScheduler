@@ -88,7 +88,7 @@ function resetTrainScheduleNextArr(){
   var currentTime = moment([]);
   console.log("resetTrainScheduleNextArr ------ currentTime: " + currentTime.format());
   $('#current-time').text(currentTime.format());
-  
+
   //get today's first arrival time
   var todayDate = currentTime.format("YYYY-MM-DD");
   console.log("today's Date: " + todayDate);
@@ -133,48 +133,60 @@ function refreshTrainScheduleBoard(){
   });
 }
 
-function addTrain(){
-  event.preventDefault();
-  // Grabs user input
-  var trainName = $("#train-name").val().trim();
-  var destination = $("#destination").val().trim();
-  var trainStart = moment($("#fst-train-time").val().trim(), "HH:mm:ss").format("HH:mm:ss");
-  var frequency = $("#frequency").val().trim();
+function addAddBtnClickListener(){
+  $("#add-train").on("click", function(event) {
+    event.preventDefault();
 
-  // Creates local "temporary" object for holding employee data
-  var newTrain = {
-    name: trainName,
-    destination: destination,
-    start: trainStart,
-    frequency: frequency
-  };
+    // Grabs user input
+    var trainName = $("#train-name").val().trim();
+    var destination = $("#destination").val().trim();
+    var trainStart = moment($("#fst-train-time").val().trim(), "HH:mm:ss").format("HH:mm:ss");
+    var frequency = $("#frequency").val().trim();
 
-  // Uploads employee data to the database
-  database.ref().push(newTrain);
+    if(trainName.length==0 || destination.length==0 || trainStart.length==0 || frequency.length==0){
+      // Alert
+      alert("Please fill in all the information.");
+      return;
+    }
 
-  // Logs everything to console
-  console.log(newTrain.name);
-  console.log(newTrain.destination);
-  console.log(newTrain.start);
-  console.log(newTrain.frequency);
+    // Creates local "temporary" object for holding employee data
+    var newTrain = {
+      name: trainName,
+      destination: destination,
+      start: trainStart,
+      frequency: frequency
+    };
 
-  // Alert
-  alert("Train successfully added");
+    // Uploads employee data to the database
+    database.ref().push(newTrain);
 
-  // Clears all of the text-boxes
-  $("#train-name").val("");
-  $("#destination").val("");
-  $("#fst-train-time").val("");
-  $("#frequency").val("");
+    // Logs everything to console
+    console.log(newTrain.name);
+    console.log(newTrain.destination);
+    console.log(newTrain.start);
+    console.log(newTrain.frequency);
+
+    // Alert
+    alert("Train successfully added");
+
+    // Clears all of the text-boxes
+    $("#train-name").val("");
+    $("#destination").val("");
+    $("#fst-train-time").val("");
+    $("#frequency").val("");
+  });
 }
 
 function addDBAddTrainListener(){
   database.ref().on("child_added", function(childSnapshot, prevChildKey) {
-  console.log('Event------add child ------------'+ prevChildKey);
-
   console.log(childSnapshot.val());
 
-  // Store everything into a variable.
+  //NOte: should not use prevChildKey as it is null on init 
+  //then on record added event, it is the key of the reord in the list
+  //before the added one
+  var recordKey = childSnapshot.key;  //should not use prevChildKey
+  console.log('Event------this child ------------ '+ recordKey);
+  console.log('path:' +childSnapshot.toString());
   var trainName = childSnapshot.val().name;
   var destination = childSnapshot.val().destination;
 
@@ -204,32 +216,48 @@ function addDBAddTrainListener(){
   setTrainInfo(currentTime, todayDate, trainInfo);
 
   // Add each train's data into the table
-  $("#train-schedule-table > tbody").append("<tr><td>" + trainName + "</td><td>" 
+  $("#train-schedule-table > tbody").append("<tr id='" + recordKey + "'> <td>" + trainName + "</td><td>" 
       + destination + "</td><td>" + trainInfo.todayFirstTrainTimeStr + "</td><td>" 
       + trainInfo.frequency + "</td><td>" + trainInfo.nextArrivalTimeStr + "</td><td>" + trainInfo.minsToWait + "</td><td>"
-      + '<button type="button" class="btn btn-primary">x</button></td></tr>');
+      + '<button type="button" class="btn btn-primary" recordkey="'+ recordKey + '">x</button></td></tr>');
   });
 }
 
+function addDelBtnClickListener(){
+  $('#train-schedule-table').on("click", "button", function() {
+      //$("button").on("click", function() {  this won't work for the newly added button
+      //get the name of the button clicked
+      var trainRecordKey = $(this).attr("recordkey");
+      console.log("To remov the train with key:" + trainRecordKey);
+
+      database.ref().child(trainRecordKey).remove();
+    });
+}
+
 $(document).ready(function(){
-  // 1. Initialize Firebase
+  //Initialize Firebase
   initTrainDB();
 
-  //get the current time
+  //get the current time for display
   var currentTime = moment([]);
   $('#current-time').text(currentTime.format());
 
-  //fill the schedule dashboard with info from DB
-  //add listener to db record add event 
+  //fill the schedule dashboard with info from DB AND
+  //add DB listener for train been added 
   addDBAddTrainListener();
 
-  // 2. Button for adding Employees
-  $("#add-train").on("click", function(event) {
-    event.preventDefault();
-    addTrain();
+  //add DB listener for Train been removed
+  database.ref().on('child_removed', function(oldChildSnapshot) {
+    //delete table row for the removed record
+    $('#'+oldChildSnapshot.key).remove();
+    console.log("removed:" + oldChildSnapshot.key);
   });
 
-  //refreshTrainScheduleBoard();
+  //add listener for the add button
+  addAddBtnClickListener();
+
+  //add listener for the delete button
+  addDelBtnClickListener();
 
   //refresh the the next arrival time and minutes to wait every 1 munite
   var timeCounter = setInterval(resetTrainScheduleNextArr, 60000);
