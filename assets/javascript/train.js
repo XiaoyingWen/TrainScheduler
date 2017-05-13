@@ -8,7 +8,7 @@
 //    Then use moment.js formatting to set difference in current time and the scheduled arrival time.
 // 5. update the schedule board
 
-var trains = [
+/*var trains = [
   {name: "Thomas",
     destination: "Knapford",
     start:"03:30:00",  //14:41:58-04:00
@@ -25,7 +25,7 @@ var trains = [
     destination: "sp",
     start:"04:10:00",  //14:41:58-04:00
     frequency: 45}
-];
+];*/
 
 var database = null;
 
@@ -87,7 +87,8 @@ function resetTrainScheduleNextArr(){
   //get the current time
   var currentTime = moment([]);
   console.log("resetTrainScheduleNextArr ------ currentTime: " + currentTime.format());
-
+  $('#current-time').text(currentTime.format());
+  
   //get today's first arrival time
   var todayDate = currentTime.format("YYYY-MM-DD");
   console.log("today's Date: " + todayDate);
@@ -110,6 +111,7 @@ function refreshTrainScheduleBoard(){
   //get the current time
   var currentTime = moment([]);
   console.log("refreshTrainScheduleBoard ------ currentTime: " + currentTime.format());
+  $('#current-time').text(currentTime.format());
 
   //get today's first arrival time
   var todayDate = currentTime.format("YYYY-MM-DD");
@@ -166,49 +168,60 @@ function addTrain(){
   $("#frequency").val("");
 }
 
-/*function addTrain(){
+function addDBAddTrainListener(){
   database.ref().on("child_added", function(childSnapshot, prevChildKey) {
-console.log('Event----------------------child');
-
+  console.log('Event------add child ------------'+ prevChildKey);
 
   console.log(childSnapshot.val());
 
   // Store everything into a variable.
-  var empName = childSnapshot.val().name;
-  var empRole = childSnapshot.val().role;
-  var empStart = childSnapshot.val().start;
-  var empRate = childSnapshot.val().rate;
+  var trainName = childSnapshot.val().name;
+  var destination = childSnapshot.val().destination;
 
-  // Employee Info
-  console.log(empName);
-  console.log(empRole);
-  console.log(empStart);
-  console.log(empRate);
+  var trainInfo = {
+      start: childSnapshot.val().start, 
+      frequency: childSnapshot.val().frequency,
+      todayFirstTrainTimeStr: "",
+      nextArrivalTimeStr: "",
+      minsToWait: 0
+  };
 
-  // Prettify the employee start
-  var empStartPretty = moment.unix(empStart).format("MM/DD/YY");
+  // Train Info
+  console.log(trainName);
+  console.log(destination);
+  console.log(trainInfo.start);
+  console.log(trainInfo.frequency);
 
-  // Calculate the months worked using hardcore math
-  // To calculate the months worked
-  var empMonths = moment().diff(moment.unix(empStart, "X"), "months");
-  console.log(empMonths);
+  //get the current time
+  var currentTime = moment([]);
+  console.log("refreshTrainScheduleBoard ------ currentTime: " + currentTime.format());
 
-  // Calculate the total billed rate
-  var empBilled = empMonths * empRate;
-  console.log(empBilled);
+  //get today's first arrival time
+  var todayDate = currentTime.format("YYYY-MM-DD");
+  console.log("today's Date: " + todayDate);
+
+  // Calculate the next arrival time and the minutes to wait
+  setTrainInfo(currentTime, todayDate, trainInfo);
 
   // Add each train's data into the table
-  $("#employee-table > tbody").append("<tr><td>" + empName + "</td><td>" + empRole + "</td><td>" +
-  empStartPretty + "</td><td>" + empMonths + "</td><td>" + empRate + "</td><td>" + empBilled + "</td></tr>");
-});
-}*/
+  $("#train-schedule-table > tbody").append("<tr><td>" + trainName + "</td><td>" 
+      + destination + "</td><td>" + trainInfo.todayFirstTrainTimeStr + "</td><td>" 
+      + trainInfo.frequency + "</td><td>" + trainInfo.nextArrivalTimeStr + "</td><td>" + trainInfo.minsToWait + "</td><td>"
+      + '<button type="button" class="btn btn-primary">x</button></td></tr>');
+  });
+}
 
 $(document).ready(function(){
   // 1. Initialize Firebase
   initTrainDB();
 
-  //init the local trainlist to hold the trans for refresh the board every 1 munite
-  //initLocalTransList();
+  //get the current time
+  var currentTime = moment([]);
+  $('#current-time').text(currentTime.format());
+
+  //fill the schedule dashboard with info from DB
+  //add listener to db record add event 
+  addDBAddTrainListener();
 
   // 2. Button for adding Employees
   $("#add-train").on("click", function(event) {
@@ -216,8 +229,8 @@ $(document).ready(function(){
     addTrain();
   });
 
-  //create the dashboard for the schedule
-  refreshTrainScheduleBoard();
+  //refreshTrainScheduleBoard();
 
+  //refresh the the next arrival time and minutes to wait every 1 munite
   var timeCounter = setInterval(resetTrainScheduleNextArr, 60000);
 });
