@@ -3,32 +3,14 @@
 
 // 1. Initialize Firebase
 // 2. Create button for adding new train schedules - then update the html + update the database
-// 3. Create a way to retrieve train schedules from the train database.
-// 4. Create a way to calculate the next arrival time for the trains. Using difference between start and current time.
+// 3. Create a way to retrieve train schedules from the train database upon record been added or deleted from DB
+// 4. adding remove buttons for each train. Let the user delete the train
+// 5. Create a way to calculate the next arrival time and minutes to arrival for the trains every minute. Using difference between start and current time.
 //    Then use moment.js formatting to set difference in current time and the scheduled arrival time.
-// 5. update the schedule board
-
-/*var trains = [
-  {name: "Thomas",
-    destination: "Knapford",
-    start:"03:30:00",  //14:41:58-04:00
-    frequency: 30},
-   {name: "James",
-    destination: "Elsbridge",
-    start:"04:10:00",  //14:41:58-04:00
-    frequency: 45},
-   {name: "Gorden",
-    destination: "Hackenbeck",
-    start:"04:10:00",  //14:41:58-04:00
-    frequency: 45},
-  {name: "Percy",
-    destination: "sp",
-    start:"04:10:00",  //14:41:58-04:00
-    frequency: 45}
-];*/
 
 var database = null;
 
+//Initialize Firebase
 function initTrainDB(){
   var config = {
       apiKey: "AIzaSyD0zw7nCvIQzB9NrkITniVMJF1AO3aYS_E",
@@ -42,6 +24,7 @@ function initTrainDB(){
   database = firebase.database();
 }
 
+//function to caculate calculate the next arrival time and minutes to arrival
 function setTrainInfo(currentTime, todayDate, trainInfo){
    //get today's first arrival time
     var todayFirstTrainTimeStr = "";
@@ -51,30 +34,23 @@ function setTrainInfo(currentTime, todayDate, trainInfo){
     } else {
       todayFirstTrainTimeStr = trainInfo.todayFirstTrainTimeStr;
     }
-    console.log("todayFirstTrainTimeStr: " + todayFirstTrainTimeStr);
     var todayFirstTrainTime = moment(todayFirstTrainTimeStr, "YYYY-MM-DDTHH:mm:ss Z");
 
     //get the minutes past from previous arrival time
     var minsbetween = currentTime.diff(todayFirstTrainTime, "minutes");
-    console.log("minsbetween:" + minsbetween);
-
     var nextArrivalTimeStr = trainInfo.nextArrivalTimeStr;
     var minsToWait = trainInfo.minsToWait;
 
     if(minsbetween > 0){
       //get the time for wait in minutes
       var minsPast = minsbetween % trainInfo.frequency;
-      console.log("mins pass from previous arrival time:" + minsPast);
       minsToWait = trainInfo.frequency - minsPast;
-      console.log("minsToWait:" + minsToWait);
 
       //get the next arrival time by adding the number of trans frequency x frequency
       //var nextArrivalTime = currentTime.add(minsToWait, "minutes"); //this will keep the ss in the arr
-      var indexOfNextTrain = Math.ceil(minsbetween / trainInfo.frequency) ;
-      console.log("numOfTrainPast:" + indexOfNextTrain); 
+      var indexOfNextTrain = Math.ceil(minsbetween / trainInfo.frequency) ; 
       var nextArrivalTime = todayFirstTrainTime.add(trainInfo.frequency * indexOfNextTrain, "minutes");
       nextArrivalTimeStr = nextArrivalTime.format("YYYY-MM-DDTHH:mm:ss")
-      console.log("nextArrTime:" + nextArrivalTimeStr); 
     } else{
       minsToWait = Math.abs(minsbetween);
       nextArrivalTimeStr = todayFirstTrainTimeStr;
@@ -83,15 +59,14 @@ function setTrainInfo(currentTime, todayDate, trainInfo){
     trainInfo.minsToWait = minsToWait;
 }
 
+//refresh all the table cells with the up-to-minute information of next arrival time and minutes to arrival
 function resetTrainScheduleNextArr(){
   //get the current time
   var currentTime = moment([]);
-  console.log("resetTrainScheduleNextArr ------ currentTime: " + currentTime.format());
   $('#current-time').text(currentTime.format());
 
   //get today's first arrival time
   var todayDate = currentTime.format("YYYY-MM-DD");
-  console.log("today's Date: " + todayDate);
 
   $.each($('#train-schedule-table > tbody > tr'), function(index, row){
     var trainInfo = {
@@ -107,32 +82,7 @@ function resetTrainScheduleNextArr(){
   });
 }
 
-function refreshTrainScheduleBoard(){
-  //get the current time
-  var currentTime = moment([]);
-  console.log("refreshTrainScheduleBoard ------ currentTime: " + currentTime.format());
-  $('#current-time').text(currentTime.format());
-
-  //get today's first arrival time
-  var todayDate = currentTime.format("YYYY-MM-DD");
-  console.log("today's Date: " + todayDate);
-
-  $.each(trains, function(index, train){
-    var trainInfo = {
-      start: train.start, 
-      frequency: train.frequency,
-      todayFirstTrainTimeStr: "",
-      nextArrivalTimeStr: "",
-      minsToWait: 0
-    };
-    setTrainInfo(currentTime, todayDate, trainInfo);
-    $("#train-schedule-table > tbody").append("<tr><td>" + train.name + "</td><td>" 
-      + train.destination + "</td><td>" + trainInfo.todayFirstTrainTimeStr + "</td><td>" 
-      + train.frequency + "</td><td>" + trainInfo.nextArrivalTimeStr + "</td><td>" + trainInfo.minsToWait + "</td><td>"
-      + '<button type="button" class="btn btn-primary">x</button></td></tr>');
-  });
-}
-
+//add handler for the Add button been clicked to add the train into DB and the schedule dashboard
 function addAddBtnClickListener(){
   $("#add-train").on("click", function(event) {
     event.preventDefault();
@@ -160,12 +110,6 @@ function addAddBtnClickListener(){
     // Uploads employee data to the database
     database.ref().push(newTrain);
 
-    // Logs everything to console
-    console.log(newTrain.name);
-    console.log(newTrain.destination);
-    console.log(newTrain.start);
-    console.log(newTrain.frequency);
-
     // Alert
     alert("Train successfully added");
 
@@ -177,16 +121,15 @@ function addAddBtnClickListener(){
   });
 }
 
+//refresh train schedule dashboard upon record been added in DB
 function addDBAddTrainListener(){
   database.ref().on("child_added", function(childSnapshot, prevChildKey) {
-  console.log(childSnapshot.val());
+  //console.log(childSnapshot.val());
 
   //NOte: should not use prevChildKey as it is null on init 
   //then on record added event, it is the key of the reord in the list
   //before the added one
   var recordKey = childSnapshot.key;  //should not use prevChildKey
-  console.log('Event------this child ------------ '+ recordKey);
-  console.log('path:' +childSnapshot.toString());
   var trainName = childSnapshot.val().name;
   var destination = childSnapshot.val().destination;
 
@@ -198,19 +141,10 @@ function addDBAddTrainListener(){
       minsToWait: 0
   };
 
-  // Train Info
-  console.log(trainName);
-  console.log(destination);
-  console.log(trainInfo.start);
-  console.log(trainInfo.frequency);
-
   //get the current time
   var currentTime = moment([]);
-  console.log("refreshTrainScheduleBoard ------ currentTime: " + currentTime.format());
-
   //get today's first arrival time
   var todayDate = currentTime.format("YYYY-MM-DD");
-  console.log("today's Date: " + todayDate);
 
   // Calculate the next arrival time and the minutes to wait
   setTrainInfo(currentTime, todayDate, trainInfo);
@@ -223,6 +157,8 @@ function addDBAddTrainListener(){
   });
 }
 
+//add handler for the x button been clicked in the schedule dashboard
+// to delete the train from DB
 function addDelBtnClickListener(){
   $('#train-schedule-table').on("click", "button", function() {
       //$("button").on("click", function() {  this won't work for the newly added button
@@ -259,6 +195,6 @@ $(document).ready(function(){
   //add listener for the delete button
   addDelBtnClickListener();
 
-  //refresh the the next arrival time and minutes to wait every 1 munite
+  //updating "minutes to arrival" and "next train time" once every minute
   var timeCounter = setInterval(resetTrainScheduleNextArr, 60000);
 });
